@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shopping_list/data/categories.dart';
@@ -36,9 +37,13 @@ class _GroceryListState extends State<GroceryList> {
       });
     }
 
-    setState(() {
-      _isLoading = false;
-    });
+    if (json.decode(response.body) == null) {
+      setState(() {
+        _isLoading = false;
+      });
+
+      return;
+    }
 
     final Map<String, dynamic> listData = json.decode(response.body);
 
@@ -61,6 +66,7 @@ class _GroceryListState extends State<GroceryList> {
 
     setState(() {
       _groceryItems = loadedItems;
+      _isLoading = false;
     });
   }
 
@@ -81,9 +87,77 @@ class _GroceryListState extends State<GroceryList> {
     });
   }
 
-  void _removeItem(GroceryItem item) {
+  void _removeItem(GroceryItem item) async {
+    final index = _groceryItems.indexOf(item);
+    var isUndoPressed = false;
     setState(() {
       _groceryItems.remove(item);
+    });
+
+    if (!context.mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: Theme.of(context).colorScheme.onSecondary,
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () {
+            setState(() {
+              isUndoPressed = true;
+              _groceryItems.insert(index, item);
+            });
+          },
+        ),
+        content: Text(
+          'Deleting item...',
+          style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                color: Theme.of(context).colorScheme.onBackground,
+              ),
+        ),
+      ),
+    );
+
+    Timer.periodic(const Duration(seconds: 4), (timer) async {
+      if (isUndoPressed) {
+        timer.cancel();
+        return;
+      }
+
+      final url = Uri.https(
+          'flutter-shopping-list-2895b-default-rtdb.europe-west1.firebasedatabase.app',
+          'shopping-list/${item.id}.json');
+
+      final response = await http.delete(url);
+
+      if (response.statusCode >= 400) {
+        if (!context.mounted) {
+          return;
+        }
+
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Theme.of(context).colorScheme.onSecondary,
+            duration: const Duration(seconds: 3),
+            content: Text(
+              'Failed to delete item.',
+              style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                    color: Theme.of(context).colorScheme.onBackground,
+                  ),
+            ),
+          ),
+        );
+
+        setState(() {
+          _groceryItems.insert(index, item);
+        });
+      }
+
+      timer.cancel();
     });
   }
 
