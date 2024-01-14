@@ -16,7 +16,7 @@ class NewItemScreen extends StatefulWidget {
 class _NewItemScreenState extends State<NewItemScreen> {
   final _formKey = GlobalKey<FormState>();
   var _enteredName = '';
-  var _enteredQuantity = 1;
+  var _enteredQuantity = '1';
   var _selectedCategory = categories[Categories.vegetables]!;
   var _isSending = false;
   String? _error;
@@ -114,17 +114,14 @@ class _NewItemScreenState extends State<NewItemScreen> {
                   keyboardType: TextInputType.number,
                   initialValue: _enteredQuantity.toString(),
                   validator: (value) {
-                    if (value == null ||
-                        value.isEmpty ||
-                        int.tryParse(value) == null ||
-                        int.tryParse(value)! <= 0) {
-                      return 'Must be a valid, positive number.';
+                    if (value == null || value.isEmpty) {
+                      return 'Must not be 0 characters.';
                     }
 
                     return null;
                   },
                   onSaved: (value) {
-                    _enteredQuantity = int.parse(value!);
+                    _enteredQuantity = value!;
                   },
                 ),
               ),
